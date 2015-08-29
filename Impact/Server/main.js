@@ -22,7 +22,15 @@ var fs = require('fs')
 
 //var mraa = require("mraa");
 
+var deviceId ='LSM9DS0';
 
+var args = process.argv;
+
+if (args.length >= 5) {
+  var Serv_host = args[2];
+  var Serv_path = args[3];
+  var Serv_id = args[4];	
+}
 
 // //Reads the output of a program that we compile previously
 // // ReadSensors is a link to Impact/LSM9DS0-master/test
@@ -45,7 +53,7 @@ var app = express()
 
 app.set('port', port)
 
-
+counter = 0; ////////////////////
 
 // // view engine setup
 // app.set('views', path.join(__dirname, 'views'))
@@ -115,7 +123,13 @@ app.get('/socket-backbone.js',function (req, res) {
 
 // //Handle Data From DataReader
 DataReader.stdout.on('readable',function(){
-    sendout('message', C++, Date.now(), DataReader.stdout.read().toString('utf8') )
+    var sensorString = DataReader.stdout.read().toString('utf8');
+    sendout('message', C++, Date.now(), sensorString);
+    if (args.length >= 5 && !(counter++ % 10)) {
+	PostCode(Serv_id, deviceId, counter, sensorString);
+	if (counter == 1) console.log('writing to ' + Serv_host + " " + 
+Serv_path + " id = " + Serv_id);	
+	}
 })
 
 // //Handle Data From DataReader
@@ -205,6 +219,62 @@ function normalizePort(val) {
 
 	 return false
 }
+
+////////////////////////////////////////////////////////////////
+// post function
+
+ 
+// http://stackoverflow.com/questions/6158933/how-to-make-an-http-post-request-in-node-js
+
+// We need this to build our post string
+var querystring = require('querystring');
+var http = require('http');
+var fs = require('fs');
+
+//		$id = $_POST['id'];
+//		$device = $_POST['device'];
+//		$sequence = $_POST['seq'];
+//		$motion = $_POST['motion'];
+
+function PostCode(id, device, seq, motion) {
+  // Build the post string from an object
+  var post_data = querystring.stringify({
+      'id' : id,
+      'device': device,
+      'output_info': 'compiled_code',
+        'seq' : seq,
+        'motion' : motion
+  });
+
+  // An object of options to indicate where to post to
+  var post_options = {
+      host: Serv_host,  // 'abc.com'
+      port: '80',
+      path: Serv_path,  // '.../addToDb.php'
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': post_data.length
+      }
+  };
+
+  // Set up the request
+  var post_req = http.request(post_options, function(res) {
+      res.setEncoding('utf8');
+      res.on('data', function (chunk) {
+          console.log('Response: ' + chunk);
+      });
+  });
+
+//    console.log("ready to post");
+  
+  // post the data
+  post_req.write(post_data);
+  post_req.end();
+
+}
+
+
 
 
 ////////////////////////////////////////////////////////////////
