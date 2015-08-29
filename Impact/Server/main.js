@@ -1,0 +1,398 @@
+//Constants
+var port = normalizePort(process.env.PORT || '3000' )
+, nextid = 0
+, socks = {}
+, rootDir = '/home/root/Impact/'
+, serverDir = rootDir+'Server/'
+, clientDir = serverDir+'client/'
+, C = 0
+
+
+//Requirements
+var fs = require('fs')
+, spawn = require('child_process').spawn
+, _ = require("underscore")._
+, express = require('express')
+, http = require('http')
+, socketio = require('socket.io')
+// , ss = require('socket.io-stream')
+, split = require('split')
+// , bodyParser = require('body-parser')
+// , cookieParser = require('cookie-parser')
+
+//var mraa = require("mraa");
+
+
+
+// //Reads the output of a program that we compile previously
+// // ReadSensors is a link to Impact/LSM9DS0-master/test
+// // if you need to make changes to LSM9DS0-master/test.c
+// //     just run make in that directory afterwards and then restart the server
+// // you can run the program from the terminal to get a better idea of what's going on
+// var DataReaderArgs = [serverDir+'ReadSensors',['--mode', 'impact']]
+// //var DataReader = spawn()
+
+//Reads the output of a program that we compile previously
+// ReadSensors is a link to Impact/LSM9DS0-master/test
+// if you need to make changes to LSM9DS0-master/test.c
+//     just run make in that directory afterwards and then restart the server
+// you can run the program from the terminal to get a better idea of what's going on
+var DataReader = spawn(serverDir+'ReadSensors',['--mode', 'impact'])
+
+
+//Setup the Server
+var app = express()
+
+app.set('port', port)
+
+
+
+// // view engine setup
+// app.set('views', path.join(__dirname, 'views'))
+app.set('view engine', 'jade')
+//Turns off caching of view templates so you can make changes without restarting the server
+// if (dev) app.set('view cache', false)
+
+
+// //Turns the body of a request into a more usable form
+// app.use(bodyParser.json())
+// app.use(bodyParser.urlencoded({ extended: false }))
+// app.use(cookieParser())
+
+
+
+//Serves /home/root/Impact/Server/client/index.html when a user connects to the browser
+app.get('/',function (req, res) {
+    res.render( clientDir+'index.jade')
+    // res.sendFile( clientDir+'index.html')
+})
+
+app.get('/index.js',function (req, res) {
+    res.sendFile( clientDir+'index.js')
+})
+
+app.get('/index.css',function (req, res) {
+    res.sendFile( clientDir+'index.css')
+})
+
+app.get('/jquery.js',function (req, res) {
+    res.sendFile( clientDir+'jquery-2.1.4.min.js')
+})
+
+app.get('/jquery-ui.js',function (req, res) {
+    res.sendFile( clientDir+'jquery-ui.min.js')
+})
+
+app.get('/jquery-ui.css',function (req, res) {
+    res.sendFile( clientDir+'jquery-ui.min.css')
+})
+
+app.get('/canvasjs.js',function (req, res) {
+    res.sendFile( clientDir+'canvasjs.min.js')
+})
+
+app.get('/jquery.canvasjs.js',function (req, res) {
+    res.sendFile( clientDir+'jquery.canvasjs.min.js')
+})
+
+app.get('/flot.js',function (req, res) {
+    res.sendFile( clientDir+'jquery.flot.js')
+})
+
+app.get('/underscore.js',function (req, res) {
+    res.sendFile( clientDir+'underscore-min.js')
+})
+
+app.get('/backbone.js',function (req, res) {
+    res.sendFile( clientDir+'backbone-min.js')
+})
+
+app.get('/socket-backbone.js',function (req, res) {
+    res.sendFile( clientDir+'socket-backbone.js')
+})
+
+
+
+// //Handle Data From DataReader
+DataReader.stdout.on('readable',function(){
+    sendout('message', C++, Date.now(), DataReader.stdout.read().toString('utf8') )
+})
+
+// //Handle Data From DataReader
+// DataReader.stdout.pipe(split()).on('data',function(line){
+//     sendout('message', line) //.toString('utf8'))
+// })
+
+// //Handle Data From DataReader
+// DataReader.stdout.on('data', function (data) {
+//     //process.stdout.write(data)
+//     sendout('message', data.toString('utf8'))
+// })
+
+DataReader.stderr.on('data', function (data) {
+    console.log('stderr: ' + data)
+})
+
+DataReader.on('close', function (code) {
+    console.log('child process exited with code ' + code)
+//should probably quit, restart, or at least close listening sockets if this happens
+})
+
+//sends data to sockets
+function sendout(){
+    var args = arguments
+    _.each(socks, function(socket){
+        socket.emit.apply(socket, args)
+    });
+}
+
+
+
+//Create Server and Attach Socket.io
+var server = http.createServer(app)
+, io = socketio(server)
+
+
+
+//Attach a 'connection' event handler to the socketio server
+io.on('connection', function (socket) {
+    var myid = nextid++
+    console.log('a user connected')
+
+    //Emits an event along with a message
+    socket.emit('connected', 'Welcome')
+    socks[myid] = socket
+
+    //Attach a 'disconnect' event handler to the socket
+    socket.on('disconnect', function () {
+        delete socks[myid]
+        console.log('user disconnected')
+    })
+})
+
+
+//Start the Server and Display a Message
+server.listen(port)
+
+server.on('listening', onListening)
+function onListening() {
+	 var addr = server.address()
+	 // var bind = typeof addr === 'string'
+	 //     ? 'pipe ' + addr
+	 //     : 'port ' + addr.port
+	 console.log('Listening at http://%s:%s ', addr.address, addr.port)
+}
+
+
+
+////////////////////////////////////////////////////////////////
+//Functions
+
+
+// Normalize a port into a number, string, or false.
+function normalizePort(val) {
+	 var port = parseInt(val, 10)
+
+	 if (isNaN(port)) {
+		  // named pipe
+		  return val
+	 }
+
+	 if (port >= 0) {
+		  // port number
+		  return port
+	 }
+
+	 return false
+}
+
+
+////////////////////////////////////////////////////////////////
+//Legacy
+
+
+// var http = require('http');
+// var app = http.createServer(function (req, res) {
+//     'use strict';
+//     res.writeHead(200, {'Content-Type': 'text/html'});
+//     res.end(
+//         '<html>'+
+//         '<head><script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>'+
+//         '<script src="https://raw.githubusercontent.com/nnnick/Chart.js/master/Chart.min.js"></script></head>'+
+//         '<body>'+
+//         '<pre id="data"></pre>'+
+//         '<script src="/socket.io/socket.io.js"></script>'+
+//         '<script>var socketio = io(), $data = $("#data");'+
+//         'socketio.on("message",function(a){'+
+//         '/* a = a.replace(/gyro/g,"<br />gyro");'+
+//         'a = a.replace(/\\n/g,"");'+
+//         'a = a.replace(/ * /g, " ");'+
+//         'var ar = a.split("<br />");'+
+//         'console.log(JSON.stringify(ar));'+
+//         'var b = []; ar.forEach(function(n){b.psh(n.replace(/.* acc: /,""))});'+
+//         'var c = [];b.forEach(function(n){n = n.replace(/ * /g, " ").split(" ");console.log("here",n);if(n.length == 3){c.push(n);}});'+
+//         'console.log(c);'+
+//         '$data.html(b.join("<br />"));});*/'+
+//         'var b = a.replace(/.*\\n/, "");'+
+//         'var c = a.split("\\n");'+
+//         'c.pop();'+
+//         'var d = [], counter = 0;'+
+//         //'c.forEach(function(n){n =});'+
+//         //'c.forEach(function(n){d[counter++]=n.split(/ */);});'+
+//         //'$data.html(d);'+
+//         '$data.html(a);'+
+//         '});'+ //close onMessage
+//         'socketio.on("connected",function(a){console.log(a)});</script>'+
+//         '</body></html>'
+//     );
+
+// }).listen(1337);
+
+// console.log('started');
+
+
+
+
+/*
+
+
+
+///////////////////////////////////////
+var net = require('net');
+var client = new net.Socket();
+
+var day = 86400000;
+// Sample data, replace it desired values
+var testdata = [
+    {
+        sensorName : "accelx",
+        sensorType: "accelx.v1.0",
+        observations: [{
+            on: new Date().getTime(),
+            value: "10"
+        },{
+            on: new Date().getTime(),
+            value: "20"
+        },{
+            on: new Date().getTime(),
+            value: "30"
+        }]
+    }
+    ,{
+        sensorName : "accely",
+        sensorType: "accely.v1.0",
+        observations: [{
+            on: new Date().getTime(),
+            value: "90"
+        },{
+            on: new Date().getTime(),
+            value: "50"
+        },{
+        on: new Date().getTime(),
+            value: "80"
+        }]
+    }
+//    ,{
+  //      sensorName : "accelz",
+    //    sensorType: "accelz.v1.0",
+//        observations: [{
+  //          on: new Date().getTime(),
+    //        value: "90"
+    //    },{
+    //        on: new Date().getTime(),
+      //      value: "50"
+//        },{
+  //      on: new Date().getTime(),
+//            value: "80"
+    //    }]
+//    }
+];
+
+// TCP Options
+var options = {
+    host : 'localhost',
+    port : 7070
+};
+
+function registerNewSensor(name, type, callback){
+    var msg = JSON.stringify({
+        n: name,
+        t: type
+    });
+
+    var sentMsg = msg.length + "#" + msg;
+    console.log("Registering sensor: " + sentMsg);
+    client.write(sentMsg);
+    callback();
+};
+
+function sendObservation(name, value, on){
+    var msg = JSON.stringify({
+        n: name,
+        v: value,
+        on: on
+    });
+
+    var sentMsg = msg.length + "#" + msg;
+    console.log("Sending observation: " + sentMsg);
+    client.write(sentMsg);
+}
+
+client.connect(options.port, options.host, function() {
+    console.log('Connected');
+
+    testdata.forEach(function(item){
+       registerNewSensor(item.sensorName, item.sensorType, function(){
+           item.observations.forEach(function(observation){
+               setTimeout(function(){
+                   sendObservation(item.sensorName, observation.value, observation.on);
+               }, 3000);
+           });
+       });
+    });
+});
+*/
+
+
+
+
+//, fstream = fs.createReadStream('bla',{end: false})
+
+// fstream.on('data',function(){
+//     console.log(JSON.stringify(arguments))
+// })
+
+
+// //Type Node.js Here :)
+
+// //function char(x) { return parseInt(x, 16); }
+
+
+// //GROVE Kit A0 Connector --> Aio(0)
+// var accel = new mraa.I2c(1);
+// var bccel = new mraa.I2c(1);
+// accel.address(0x1d);
+// bccel.address(0x6b);
+
+// //console.log('here',accel.readReg(char('0xd0')));
+
+// /*
+// Function: startSensorWatch(socket)
+// Parameters: socket - client communication channel
+// Description: Read Temperature Sensor and send temperature in degrees of Fahrenheit every 4 seconds
+// */
+
+//     setInterval(function () {
+//         var a = accel.read(255);
+//         var b = bccel.read(255);
+//         //if(a instanceof SlowBuffer) 
+//         a = a.toJSON();
+//         //if(b instanceof SlowBuffer) 
+//         b = b.toJSON();
+//         console.log(C++, "I2c (1d): " , a);
+//         console.log("I2c (6b): " , b);
+//         //console.log("Checking....");
+        
+//         sendout("message", [C,a,b]);
+//     }, 400);
+

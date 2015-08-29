@@ -1,0 +1,30 @@
+doctype html
+html(lang='en-US')
+  head
+    meta(charset='UTF-8')
+    title Team Impact
+    link(rel='stylesheet', href='/jquery-ui.css')
+    link(rel='stylesheet', href='/index.css')
+  body
+    section#toppanel
+      section.panel
+      section.menubar
+        header
+          #data
+        section.tab
+          span.toggle
+            span.open Open Panel
+            span.close(style='display:none;') Close Panel
+    main
+      .container
+        #chart.placeholder
+    #scripts
+      script(src="/jquery.js")
+      script(src="/jquery-ui.js")
+      //- script(src="/flot.js")
+      script(src="/canvasjs.js")
+      script(src="/socket.io/socket.io.js")
+      script(src="/underscore.js")
+      script(src="/backbone.js")
+      script(src="/socket-backbone.js")
+      script(src="/index.js")
